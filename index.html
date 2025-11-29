@@ -29,12 +29,19 @@
         const topic = "mac/test/led1"; 
         // =====================================
 
-        const client = new Paho.MQTT.Client("broker.hivemq.com", 8000, "client-" + Math.random());
+        const client = new Paho.MQTT.Client("broker.hivemq.com", 8884, "client-" + Math.random());
 
-        client.connect({ onSuccess: () => {
-            document.getElementById("status").innerText = "สถานะ: พร้อมใช้งาน ✅";
-            document.getElementById("status").style.color = "green";
-        }});
+        client.connect({
+            useSSL: true,  // <--- เติมบรรทัดนี้สำคัญมาก!
+            onSuccess: () => {
+                document.getElementById("status").innerText = "สถานะ: พร้อมใช้งาน ✅";
+                document.getElementById("status").style.color = "green";
+            },
+            onFailure: (err) => { // (แถม) เพิ่มตัวโชว์ Error ให้เห็นชัดๆ
+                document.getElementById("status").innerText = "❌ เชื่อมต่อไม่ได้: " + err.errorMessage;
+                document.getElementById("status").style.color = "red";
+            }
+        });
 
         function send(msg) {
             if(client.isConnected()){
