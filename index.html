@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ESP32 Controller</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js"></script>
+    <style>
+        body { font-family: sans-serif; text-align: center; padding-top: 50px; background: #f4f4f4; }
+        .container { background: white; max-width: 400px; margin: auto; padding: 20px; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        h1 { margin-top: 0; color: #333; }
+        .btn { width: 100%; padding: 15px; font-size: 18px; margin: 5px 0; border: none; border-radius: 5px; cursor: pointer; color: white; }
+        .on { background: #28a745; }
+        .off { background: #dc3545; }
+        #status { font-weight: bold; margin-bottom: 15px; color: orange; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>💡 สั่งงานไฟ</h1>
+        <div id="status">กำลังเชื่อมต่อ...</div>
+        
+        <button class="btn on" onclick="send('ON')">เปิดไฟ</button>
+        <button class="btn off" onclick="send('OFF')">ปิดไฟ</button>
+    </div>
+
+    <script>
+        // ============== แก้ตรงนี้ ==============
+        const topic = "mac/test/led1"; 
+        // =====================================
+
+        const client = new Paho.MQTT.Client("broker.hivemq.com", 8000, "client-" + Math.random());
+
+        client.connect({ onSuccess: () => {
+            document.getElementById("status").innerText = "สถานะ: พร้อมใช้งาน ✅";
+            document.getElementById("status").style.color = "green";
+        }});
+
+        function send(msg) {
+            if(client.isConnected()){
+                message = new Paho.MQTT.Message(msg);
+                message.destinationName = topic;
+                client.send(message);
+                console.log("ส่ง: " + msg);
+            }
+        }
+    </script>
+</body>
+</html>
