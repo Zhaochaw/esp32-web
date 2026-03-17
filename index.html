@@ -3,52 +3,101 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ESP32 Controller</title>
+    <title>ESP32 Controller - Ion & Fan</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js"></script>
     <style>
-        body { font-family: sans-serif; text-align: center; padding-top: 50px; background: #f4f4f4; }
+        body { font-family: sans-serif; text-align: center; padding-top: 30px; background: #f4f4f4; }
         .container { background: white; max-width: 400px; margin: auto; padding: 20px; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
-        h1 { margin-top: 0; color: #333; }
-        .btn { width: 100%; padding: 15px; font-size: 18px; margin: 5px 0; border: none; border-radius: 5px; cursor: pointer; color: white; }
+        h1 { margin-top: 0; color: #333; font-size: 24px; }
+        
+        /* จัดเรียงปุ่มให้สวยงาม */
+        .btn-group { display: flex; justify-content: space-between; margin-bottom: 15px; }
+        .btn { width: 48%; padding: 12px; font-size: 16px; border: none; border-radius: 5px; cursor: pointer; color: white; font-weight: bold;}
+        .btn-full { width: 100%; padding: 15px; font-size: 18px; margin-top: 10px; background: #007bff; }
+        
         .on { background: #28a745; }
+        .on:hover { background: #218838; }
         .off { background: #dc3545; }
+        .off:hover { background: #c82333; }
+        
         #status { font-weight: bold; margin-bottom: 15px; color: orange; }
+        
+        /* กล่องแสดงค่าเซนเซอร์ */
+        .sensor-box { background: #e9ecef; padding: 15px; border-radius: 8px; margin-bottom: 20px; font-size: 22px; color: #333; }
+        .sensor-value { font-weight: bold; color: #0056b3; font-size: 28px;}
+        
+        .section-title { text-align: left; margin-bottom: 8px; font-weight: bold; color: #555; }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>💡 สั่งงานไฟ</h1>
+        <h1>⚙️ แผงควบคุม (Ion & Fan)</h1>
         <div id="status">กำลังเชื่อมต่อ...</div>
         
-        <button class="btn on" onclick="send('ON')">เปิดไฟ</button>
-        <button class="btn off" onclick="send('OFF')">ปิดไฟ</button>
+        <div class="sensor-box">
+            ค่าเซนเซอร์: <span id="sensorValue" class="sensor-value">---</span>
+        </div>
+        
+        <button class="btn btn-full" onclick="send('Get')">ดึงค่าเซนเซอร์ 🔄</button>
+        
+        <hr style="border: 0; border-top: 1px solid #ddd; margin: 25px 0;">
+
+        <div class="section-title">เครื่องพ่นประจุไอออน (Ion)</div>
+        <div class="btn-group">
+            <button class="btn on" onclick="send('ONion')">เปิด Ion</button>
+            <button class="btn off" onclick="send('OFFion')">ปิด Ion</button>
+        </div>
+
+        <div class="section-title">พัดลม (Fan)</div>
+        <div class="btn-group">
+            <button class="btn on" onclick="send('ONfan')">เปิด Fan</button>
+            <button class="btn off" onclick="send('OFFfan')">ปิด Fan</button>
+        </div>
     </div>
 
     <script>
-        // ============== แก้ตรงนี้ ==============
-        const topic = "mac/test/led1"; 
-        // =====================================
+        // ============== ตั้งค่า Topic ให้ตรงกับ ESP32 ==============
+        const topic_publish = "Ris/Pj/Cmd"; // ส่งคำสั่งไป ESP32
+        const topic_subscribe = "Ris/Pj";   // รับค่าเซนเซอร์จาก ESP32
+        // =======================================================
 
-        const client = new Paho.MQTT.Client("broker.hivemq.com", 8884, "client-" + Math.random());
+        const client = new Paho.MQTT.Client("broker.hivemq.com", 8884, "webclient-" + Math.random());
+
+        // 1. ฟังก์ชันนี้จะทำงานอัตโนมัติเมื่อ ESP32 ส่งค่าเซนเซอร์มา
+        client.onMessageArrived = function(message) {
+            console.log("ได้รับข้อมูล: " + message.payloadString);
+            
+            // ถ้าข้อความมาจาก Topic ของเซนเซอร์ ให้อัปเดตตัวเลขบนหน้าเว็บ
+            if(message.destinationName === topic_subscribe) {
+                document.getElementById("sensorValue").innerText = message.payloadString;
+            }
+        };
 
         client.connect({
-            useSSL: true,  // <--- เติมบรรทัดนี้สำคัญมาก!
+            useSSL: true,  
             onSuccess: () => {
                 document.getElementById("status").innerText = "สถานะ: พร้อมใช้งาน ✅";
                 document.getElementById("status").style.color = "green";
+                
+                // 2. เมื่อเว็บต่อ MQTT สำเร็จ ต้องสั่ง Subscribe เพื่อรอรับค่าเซนเซอร์ด้วย
+                client.subscribe(topic_subscribe);
+                console.log("Subscribed to: " + topic_subscribe);
             },
-            onFailure: (err) => { // (แถม) เพิ่มตัวโชว์ Error ให้เห็นชัดๆ
+            onFailure: (err) => { 
                 document.getElementById("status").innerText = "❌ เชื่อมต่อไม่ได้: " + err.errorMessage;
                 document.getElementById("status").style.color = "red";
             }
         });
 
+        // 3. ฟังก์ชันส่งคำสั่ง
         function send(msg) {
             if(client.isConnected()){
-                message = new Paho.MQTT.Message(msg);
-                message.destinationName = topic;
+                let message = new Paho.MQTT.Message(msg);
+                message.destinationName = topic_publish;
                 client.send(message);
-                console.log("ส่ง: " + msg);
+                console.log("ส่งคำสั่ง: " + msg);
+            } else {
+                alert("ยังไม่ได้เชื่อมต่อกับเซิร์ฟเวอร์ MQTT!");
             }
         }
     </script>
