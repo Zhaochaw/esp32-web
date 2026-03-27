@@ -43,7 +43,7 @@
         
         <div class="sensor-grid">
             <div class="sensor-box">
-                PM Sensor Raw
+                ค่าฝุ่น PM (µg/m³)
                 <span id="pmValue" class="sensor-value">--</span>
             </div>
             <div class="sensor-box">
@@ -55,7 +55,7 @@
                 <span id="humValue" class="sensor-value">--</span>
             </div>
             <div class="sensor-box">
-                MQ Sensor
+                คุณภาพอากาศ (MQ)
                 <span id="mqValue" class="sensor-value">--</span>
             </div>
         </div>
@@ -99,7 +99,7 @@
                     document.getElementById("pmValue").innerText = data.pm;
                     document.getElementById("tempValue").innerText = data.temp + "°";
                     document.getElementById("humValue").innerText = data.hum + "%"; // ดึงค่าความชื้นมาแสดง
-                    document.getElementById("mqValue").innerText = data.mq;
+                    document.getElementById("mqValue").innerText = data.mq + " ppm";
                 } catch(e) {
                     console.log("Error parsing JSON:", e);
                 }
