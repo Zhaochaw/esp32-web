@@ -19,7 +19,6 @@
         #webStatus { color: orange; margin-bottom: 5px; }
         #espStatus { color: gray; font-weight: bold; font-size: 16px;}
         
-        /* ปรับกล่องเซนเซอร์ให้เรียง 2 แถวแบบสวยๆ */
         .sensor-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
         .sensor-box { background: #e9ecef; padding: 15px 5px; border-radius: 8px; font-size: 13px; color: #555; text-align: center; }
         .sensor-value { display: block; font-weight: bold; font-size: 22px; margin-top: 5px; }
@@ -30,6 +29,13 @@
         #mqValue { color: #27ae60; }
         
         .section-title { text-align: left; margin-bottom: 8px; font-weight: bold; color: #555; margin-top: 20px;}
+        
+        /* ปุ่ม CSV ทั้ง 2 ปุ่ม */
+        .btn-csv { width: 100%; padding: 12px; font-size: 16px; border: none; border-radius: 5px; cursor: pointer; color: white; font-weight: bold; background: #17a2b8; margin-top: 20px; transition: 0.3s;}
+        .btn-csv:hover { background: #138496; }
+        
+        .btn-reset { width: 100%; padding: 12px; font-size: 16px; border: none; border-radius: 5px; cursor: pointer; color: white; font-weight: bold; background: #6c757d; margin-top: 10px; transition: 0.3s;}
+        .btn-reset:hover { background: #5a6268; }
     </style>
 </head>
 <body>
@@ -73,6 +79,10 @@
             <button class="btn on" onclick="send('ONfan')">เปิด Fan (Manual)</button>
             <button class="btn off" onclick="send('OFFfan')">ปิด Fan (Manual)</button>
         </div>
+
+        <button class="btn-csv" onclick="downloadCSV()">💾 ดาวน์โหลดข้อมูล (CSV)</button>
+        <button class="btn-reset" onclick="resetCSV()">🗑️ ล้างข้อมูลใหม่ (Reset)</button>
+        <div style="font-size: 13px; color: #555; margin-top: 8px; text-align: center; font-weight: bold;" id="recordCount">กำลังบันทึก... (0 แถว)</div>
     </div>
 
     <script>
@@ -81,6 +91,10 @@
         const topic_sub_status = "Ris/Pj/Status";
 
         const client = new Paho.MQTT.Client("broker.hivemq.com", 8884, "webclient-" + Math.random());
+
+        // ตัวแปรสำหรับเก็บข้อมูล CSV
+        let csvData = ["Time,PM(µg/m3),Temperature(C),Humidity(%),MQ(ppm)"];
+        let recordCounter = 0;
 
         client.onMessageArrived = function(message) {
             if(message.destinationName === topic_sub_status) {
@@ -98,8 +112,20 @@
                     let data = JSON.parse(message.payloadString);
                     document.getElementById("pmValue").innerText = data.pm;
                     document.getElementById("tempValue").innerText = data.temp + "°";
-                    document.getElementById("humValue").innerText = data.hum + "%"; // ดึงค่าความชื้นมาแสดง
+                    document.getElementById("humValue").innerText = data.hum + "%"; 
                     document.getElementById("mqValue").innerText = data.mq + " ppm";
+
+                    // ==========================================
+                    // บันทึกข้อมูลลง CSV
+                    // ==========================================
+                    let now = new Date();
+                    let timeString = now.toLocaleTimeString('th-TH'); 
+                    let newRow = `${timeString},${data.pm},${data.temp},${data.hum},${data.mq}`;
+                    
+                    csvData.push(newRow); 
+                    recordCounter++;
+                    document.getElementById("recordCount").innerText = `กำลังบันทึก... (${recordCounter} แถว)`;
+
                 } catch(e) {
                     console.log("Error parsing JSON:", e);
                 }
@@ -130,6 +156,44 @@
                 client.send(message);
             } else {
                 alert("รอหน้าเว็บเชื่อมต่อเซิร์ฟเวอร์ก่อนนะครับ");
+            }
+        }
+
+        // ==========================================
+        // ฟังก์ชันดาวน์โหลด CSV
+        // ==========================================
+        function downloadCSV() {
+            if(csvData.length <= 1) {
+                alert("ยังไม่มีข้อมูลให้ดาวน์โหลดครับ รอสักครู่นะครับ");
+                return;
+            }
+            
+            let csvContent = "data:text/csv;charset=utf-8,\uFEFF" + csvData.join("\n");
+            let encodedUri = encodeURI(csvContent);
+            let link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            
+            let now = new Date();
+            let fileName = "SmartAir_Data_" + now.getHours() + now.getMinutes() + ".csv";
+            link.setAttribute("download", fileName);
+            
+            document.body.appendChild(link);
+            link.click(); 
+            document.body.removeChild(link);
+        }
+
+        // ==========================================
+        // ฟังก์ชันล้างข้อมูล CSV (เพิ่มใหม่)
+        // ==========================================
+        function resetCSV() {
+            // แจ้งเตือนก่อนลบ เผื่อกดผิด
+            let confirmReset = confirm("คุณต้องการล้างข้อมูลที่บันทึกไว้ทั้งหมดใช่หรือไม่?\n(ถ้ายังไม่ได้โหลด ข้อมูลจะหายไปเลยนะครับ)");
+            
+            if(confirmReset) {
+                // รีเซ็ตค่าตัวแปรให้กลับไปเป็นเหมือนตอนเปิดเว็บใหม่ๆ
+                csvData = ["Time,PM(µg/m3),Temperature(C),Humidity(%),MQ(ppm)"];
+                recordCounter = 0;
+                document.getElementById("recordCount").innerText = "กำลังบันทึก... (0 แถว)";
             }
         }
     </script>
